@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MTG Sealed Product Price Aggregator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo } = React;
+
+        const SearchIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+            </svg>
+        );
+
+        const TrendingDownIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline>
+                <polyline points="17 18 23 18 23 12"></polyline>
+            </svg>
+        );
+
+        const TrendingUpIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                <polyline points="17 6 23 6 23 12"></polyline>
+            </svg>
+        );
+
+        const PackageIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m7.5 4.27 9 5.15"></path>
+                <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path>
+                <path d="m3.3 7 8.7 5 8.7-5"></path>
+                <path d="M12 22V12"></path>
+            </svg>
+        );
+
+        const MTGPriceAggregator = () => {
+            const [products] = useState([
+                { id: 1, name: "Modern Horizons 3 Booster Box", price: 245.99, quantity: 15, seller: "CardShop123" },
+                { id: 2, name: "Modern Horizons 3 Booster Box", price: 239.95, quantity: 8, seller: "MTGDeals" },
+                { id: 3, name: "Modern Horizons 3 Booster Box", price: 255.00, quantity: 22, seller: "GameStore" },
+                { id: 4, name: "Bloomburrow Set Booster Box", price: 119.99, quantity: 12, seller: "CardKingdom" },
+                { id: 5, name: "Bloomburrow Set Booster Box", price: 114.50, quantity: 5, seller: "BudgetMTG" },
+                { id: 6, name: "Bloomburrow Set Booster Box", price: 125.00, quantity: 18, seller: "ProCards" },
+                { id: 7, name: "Duskmourn Bundle", price: 42.99, quantity: 30, seller: "MTGDeals" },
+                { id: 8, name: "Duskmourn Bundle", price: 39.95, quantity: 15, seller: "ValueCards" },
+                { id: 9, name: "Duskmourn Bundle", price: 44.99, quantity: 25, seller: "GameHub" },
+                { id: 10, name: "Foundations Booster Box", price: 99.99, quantity: 20, seller: "CardShop123" },
+                { id: 11, name: "Foundations Booster Box", price: 94.50, quantity: 10, seller: "DealFinder" },
+                { id: 12, name: "Foundations Booster Box", price: 104.99, quantity: 8, seller: "MTGPro" },
+            ]);
+
+            const [searchTerm, setSearchTerm] = useState('');
+            const [sortConfig, setSortConfig] = useState({ key: 'discount', direction: 'desc' });
+
+            const aggregatedData = useMemo(() => {
+                const productGroups = {};
+
+                products.forEach(product => {
+                    if (!productGroups[product.name]) {
+                        productGroups[product.name] = [];
+                    }
+                    productGroups[product.name].push(product);
+                });
+
+                const results = [];
+                Object.entries(productGroups).forEach(([name, items]) => {
+                    const meanPrice = items.reduce((sum, item) => sum + item.price, 0) / items.length;
+                    const totalVolume = items.reduce((sum, item) => sum + item.quantity, 0);
+
+                    items.forEach(item => {
+                        const discount = ((meanPrice - item.price) / meanPrice) * 100;
+                        results.push({
+                            ...item,
+                            meanPrice,
+                            discount,
+                            totalVolume,
+                        });
+                    });
+                });
+
+                return results;
+            }, [products]);
+
+            const filteredAndSorted = useMemo(() => {
+                let filtered = aggregatedData.filter(item =>
+                    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    item.seller.toLowerCase().includes(searchTerm.toLowerCase())
+                );
+
+                filtered.sort((a, b) => {
+                    const aVal = a[sortConfig.key];
+                    const bVal = b[sortConfig.key];
+                    const multiplier = sortConfig.direction === 'asc' ? 1 : -1;
+                    return (aVal > bVal ? 1 : -1) * multiplier;
+                });
+
+                return filtered;
+            }, [aggregatedData, searchTerm, sortConfig]);
+
+            const handleSort = (key) => {
+                setSortConfig(prev => ({
+                    key,
+                    direction: prev.key === key && prev.direction === 'desc' ? 'asc' : 'desc'
+                }));
+            };
+
+            const getDiscountColor = (discount) => {
+                if (discount >= 5) return 'text-green-600 bg-green-50';
+                if (discount >= 2) return 'text-blue-600 bg-blue-50';
+                if (discount <= -5) return 'text-red-600 bg-red-50';
+                return 'text-gray-600 bg-gray-50';
+            };
+
+            const SortIcon = ({ columnKey }) => {
+                if (sortConfig.key !== columnKey) return null;
+                return <span>{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>;
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-50 p-6">
+                    <div className="max-w-7xl mx-auto">
+                        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                                MTG Sealed Product Price Aggregator
+                            </h1>
+                            <p className="text-gray-600 mb-6">
+                                Track eBay prices, discounts vs mean, and available volume
+                            </p>
+
+                            <div className="relative">
+                                <div className="absolute left-3 top-3 text-gray-400">
+                                    <SearchIcon />
+                                </div>
+                                <input
+                                    type="text"
+                                    placeholder="Search by product name or seller..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead className="bg-gray-100 border-b border-gray-200">
+                                        <tr>
+                                            <th 
+                                                onClick={() => handleSort('name')}
+                                                className="px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200"
+                                            >
+                                                Product <SortIcon columnKey="name" />
+                                            </th>
+                                            <th 
+                                                onClick={() => handleSort('seller')}
+                                                className="px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200"
+                                            >
+                                                Seller <SortIcon columnKey="seller" />
+                                            </th>
+                                            <th 
+                                                onClick={() => handleSort('price')}
+                                                className="px-4 py-3 text-right text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200"
+                                            >
+                                                Price <SortIcon columnKey="price" />
+                                            </th>
+                                            <th 
+                                                onClick={() => handleSort('meanPrice')}
+                                                className="px-4 py-3 text-right text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200"
+                                            >
+                                                Mean Price <SortIcon columnKey="meanPrice" />
+                                            </th>
+                                            <th 
+                                                onClick={() => handleSort('discount')}
+                                                className="px-4 py-3 text-right text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200"
+                                            >
+                                                Discount <SortIcon columnKey="discount" />
+                                            </th>
+                                            <th 
+                                                onClick={() => handleSort('quantity')}
+                                                className="px-4 py-3 text-right text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200"
+                                            >
+                                                Qty Available <SortIcon columnKey="quantity" />
+                                            </th>
+                                            <th 
+                                                onClick={() => handleSort('totalVolume')}
+                                                className="px-4 py-3 text-right text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200"
+                                            >
+                                                Total Volume <SortIcon columnKey="totalVolume" />
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                        {filteredAndSorted.map((item) => (
+                                            <tr key={item.id} className="hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                                                    {item.name}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-600">
+                                                    {item.seller}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
+                                                    ${item.price.toFixed(2)}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-right text-gray-600">
+                                                    ${item.meanPrice.toFixed(2)}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-right">
+                                                    <span className={`inline-flex items-center px-2 py-1 rounded-full font-semibold ${getDiscountColor(item.discount)}`}>
+                                                        {item.discount >= 0 ? <TrendingDownIcon /> : <TrendingUpIcon />}
+                                                        <span className="ml-1">
+                                                            {item.discount > 0 ? '-' : '+'}{Math.abs(item.discount).toFixed(1)}%
+                                                        </span>
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-right text-gray-900">
+                                                    {item.quantity}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-right">
+                                                    <span className="inline-flex items-center text-gray-700">
+                                                        <PackageIcon />
+                                                        <span className="ml-1">{item.totalVolume}</span>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {filteredAndSorted.length === 0 && (
+                                <div className="text-center py-12 text-gray-500">
+                                    No products found matching your search.
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <h3 className="font-semibold text-blue-900 mb-2">How to use:</h3>
+                            <ul className="text-sm text-blue-800 space-y-1">
+                                <li>• Green discounts = Best deals (5%+ below mean)</li>
+                                <li>• Red premiums = Above average pricing (5%+ above mean)</li>
+                                <li>• Click column headers to sort</li>
+                                <li>• Total Volume shows all available units across sellers for that product</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<MTGPriceAggregator />);
+    </script>
+</body>
+</html>
